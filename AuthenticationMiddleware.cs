@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Http;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Primitives;
 
 namespace UserManagementAPI.Middleware
 {
@@ -18,12 +19,17 @@ namespace UserManagementAPI.Middleware
 
         public async Task InvokeAsync(HttpContext httpContext)
         {
-            var token = httpContext.Request.Headers["Authorization"].FirstOrDefault()?.Split(" ").Last();
+            string token = null;
+            if (httpContext.Request.Headers.TryGetValue("Authorization", out StringValues authHeaders))
+            {
+                token = authHeaders.FirstOrDefault()?.Split(" ").Last();
+            }
 
             if (string.IsNullOrEmpty(token) || !ValidateToken(token))
             {
                 _logger.LogWarning("Unauthorized access attempt.");
                 httpContext.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                httpContext.Response.ContentType = "application/json";
                 await httpContext.Response.WriteAsJsonAsync(new { error = "Unauthorized access." });
                 return;
             }
